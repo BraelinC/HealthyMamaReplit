@@ -1,6 +1,14 @@
-modules = ["nodejs-18", "web"]
-[agent]
-expertMode = true
+modules = ["nodejs-18"]
 
-[nix]
-channel = "stable-25_05"
+# Main run command for development
+run = ["npm", "run", "dev"]
+
+[deployment]
+run = ["npm", "run", "start:replit"]
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[env]
+NODE_ENV = "development"

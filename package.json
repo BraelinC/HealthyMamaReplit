@@ -11,10 +11,13 @@
     "dev:frontend-only": "vite",
     "dev:api-only": "tsx dev-server.ts",
     "build": "vite build",
-    "start": "vite preview",
+    "start": "tsx server/index.ts",
+    "start:replit": "tsx server/index.ts",
     "check": "tsc",
     "db:push": "drizzle-kit push",
-    "vercel-build": "vite build"
+    "vercel-build": "vite build",
+    "replit:install": "npm install --production=false",
+    "replit:build": "npm run build && npm run check"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.63.1",

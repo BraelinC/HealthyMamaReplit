@@ -1207,7 +1207,7 @@ export default function Home() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-purple-700 to-indigo-600 bg-clip-text text-transparent leading-tight"> Your Meal Plan
+              <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-purple-700 to-indigo-600 bg-clip-text text-transparent leading-tight">Meal
               </h1>
               <div className="flex items-center gap-6 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">

@@ -111,7 +111,6 @@ function NavLinks({ onClick }: { onClick?: () => void }) {
   const [location] = useLocation();
   
   const navItems = [
-    { icon: <HandPlatter className="w-5 h-5" />, label: "Search", path: "/search" },
     { icon: <ChefHat className="w-5 h-5" />, label: "Home", path: "/" },
     { icon: <ChefHat className="w-5 h-5" />, label: "Meal Planner", path: "/meal-planner" },
   ];
@@ -138,7 +137,6 @@ function AppTabBar() {
   const { user, isAuthenticated } = useAuth();
 
   const tabs = [
-    { icon: <HandPlatter className="w-5 h-5" />, label: "Search", path: "/search" },
     { icon: <ChefHat className="w-5 h-5" />, label: "Home", path: "/" },
     { icon: <Users className="w-5 h-5" />, label: "Communities", path: "/communities" },
   ];
@@ -350,7 +348,7 @@ function Router() {
             <main className="flex-grow pb-16"> {/* Add bottom padding for the tab bar */}
               <Switch>
                 <Route path="/" component={Home} />
-                <Route path="/search" component={Search} />
+                {/* <Route path="/search" component={Search} /> */}
                 <Route path="/meal-planner" component={MealPlanner} />
                 <Route path="/chat" component={Chat} />
                 <Route path="/communities" component={Communities} />
