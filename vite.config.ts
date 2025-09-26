@@ -24,13 +24,17 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
     },
     server: {
-      host: true,
+      host: "0.0.0.0",
+      port: 5000,
+      strictPort: true,
+      allowedHosts: "all",
       hmr: {
         overlay: true,
+        port: 5000,
         // Allow overriding via env if running behind a proxy (e.g., vercel dev)
-        host: env.VITE_HMR_HOST || undefined,
-        clientPort: env.VITE_HMR_CLIENT_PORT ? Number(env.VITE_HMR_CLIENT_PORT) : undefined,
-        protocol: env.VITE_HMR_PROTOCOL || undefined,
+        host: env.VITE_HMR_HOST || "0.0.0.0",
+        clientPort: env.VITE_HMR_CLIENT_PORT ? Number(env.VITE_HMR_CLIENT_PORT) : 5000,
+        protocol: env.VITE_HMR_PROTOCOL || "ws",
       },
       proxy: {
         '/api': {
