@@ -50,13 +50,16 @@ import simplifiedMem0Routes from "./routes/simplifiedMem0Routes";
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 const YOUTUBE_API_BASE_URL = 'https://www.googleapis.com/youtube/v3';
 
-// Stripe configuration
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+// Stripe configuration (conditional initialization)
+let stripe: Stripe | null = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2025-07-30.basil",
+  });
+  console.log("[STRIPE] ✅ Stripe client initialized");
+} else {
+  console.log("[STRIPE] ⚠️ STRIPE_SECRET_KEY not set - payment features will be disabled");
 }
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-07-30.basil",
-});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware - Replit Auth disabled

@@ -9,7 +9,15 @@ import {
 } from "@shared/schema";
 import { memoryService } from "./memoryService";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Initialize OpenAI client conditionally
+let openai: OpenAI | null = null;
+if (process.env.OPENAI_API_KEY) {
+  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  console.log("[AI INIT] ✅ OpenAI client initialized successfully");
+} else {
+  console.log("[AI INIT] ⚠️ OPENAI_API_KEY not set - AI features will be disabled");
+}
+
 // Basic startup diagnostics (no secrets)
 (() => {
   const key = process.env.OPENAI_API_KEY || "";

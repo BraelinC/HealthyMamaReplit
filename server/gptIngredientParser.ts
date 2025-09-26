@@ -5,7 +5,13 @@
 
 import OpenAI from "openai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Initialize OpenAI client conditionally
+let openai: OpenAI | null = null;
+if (process.env.OPENAI_API_KEY) {
+  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+} else {
+  console.log("[GPT PARSER] ⚠️ OPENAI_API_KEY not set - ingredient parsing will use fallback");
+}
 
 interface ParsedIngredientGPT {
   originalText: string;
@@ -19,6 +25,18 @@ interface ParsedIngredientGPT {
  * Use GPT to parse ingredient text and extract clean food name with quantity
  */
 export async function parseIngredientWithGPT(ingredientText: string): Promise<ParsedIngredientGPT> {
+  // If OpenAI is not available, use fallback immediately
+  if (!openai) {
+    console.log("[GPT PARSER] No OpenAI client available, using fallback for:", ingredientText);
+    return {
+      originalText: ingredientText,
+      cleanFoodName: extractFallbackFoodName(ingredientText),
+      quantity: 1,
+      unit: "item",
+      estimatedGrams: 50
+    };
+  }
+
   try {
     const prompt = `Parse this ingredient text and extract EXACT measurements for nutrition calculation:
 
@@ -122,6 +140,18 @@ function extractFallbackFoodName(text: string): string {
  * Batch parse multiple ingredients with GPT
  */
 export async function parseIngredientsWithGPT(ingredients: string[]): Promise<ParsedIngredientGPT[]> {
+  // If OpenAI is not available, use fallback for all ingredients
+  if (!openai) {
+    console.log("[GPT PARSER] No OpenAI client available, using fallback for batch parsing");
+    return ingredients.map(text => ({
+      originalText: text,
+      cleanFoodName: extractFallbackFoodName(text),
+      quantity: 1,
+      unit: "item",
+      estimatedGrams: 50
+    }));
+  }
+
   try {
     const prompt = `Parse these ingredient texts and extract essential information for nutrition lookup:
 

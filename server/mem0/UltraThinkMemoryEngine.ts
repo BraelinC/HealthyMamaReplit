@@ -11,7 +11,7 @@ import { buildProfileMemorySummary, collectPreferenceCategories, computeProfileS
 
 export class UltraThinkMemoryEngine {
   private memoryEngine: Memory;
-  private conversationModel: OpenAI;
+  private conversationModel: OpenAI | null = null;
 
   constructor() {
     // Gemini 2.0 Flash for memory operations (2M context window, fast processing)
@@ -45,9 +45,14 @@ export class UltraThinkMemoryEngine {
         } as any;
 
     // GPT-4o-mini for conversation responses (proven recipe expertise)
-    this.conversationModel = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
+    if (process.env.OPENAI_API_KEY) {
+      this.conversationModel = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+      });
+      console.log("[ULTRA THINK ENGINE] ✅ OpenAI client initialized");
+    } else {
+      console.log("[ULTRA THINK ENGINE] ⚠️ OPENAI_API_KEY not set - memory features will be limited");
+    }
   }
 
   // Store comprehensive user profile data
@@ -204,6 +209,16 @@ Preference Categories:
 
   // Intelligent conversation processing with memory context
   async processConversation(userId: string, message: string, communityId?: number) {
+    if (!this.conversationModel) {
+      console.log("[ULTRA THINK ENGINE] OpenAI not available, returning fallback response");
+      return {
+        response: "I'm sorry, but AI conversation features are currently unavailable. Please ensure the OpenAI API key is configured.",
+        memoryContext: [],
+        model: "fallback",
+        contextUsed: 0
+      };
+    }
+
     try {
       // 1. Search relevant memories with Gemini's semantic understanding
       const relevantMemories = await this.memoryEngine.search(message, {
@@ -256,6 +271,22 @@ Preference Categories:
 
   // Find recipes with intelligent substitutions based on user context
   async findRecipeWithSubstitutions(userId: string, query: string, creatorId?: string) {
+    if (!this.conversationModel) {
+      console.log("[ULTRA THINK ENGINE] OpenAI not available, returning basic recipe search");
+      // Return fallback response with memory search only
+      const recipeMemories = await this.memoryEngine.search(query, {
+        userId,
+        limit: 5
+      });
+      
+      return {
+        originalRecipes: recipeMemories,
+        userContext: [],
+        modifications: "AI recipe modification features are currently unavailable. Please ensure the OpenAI API key is configured.",
+        reasoning: "Fallback search without AI modifications"
+      };
+    }
+
     try {
       // Search for recipes with context-aware filtering
       const searchQuery = creatorId ?

@@ -14,14 +14,19 @@ interface MemoryItem {
 }
 
 export class SimplifiedUltraThink {
-  private conversationModel: OpenAI;
+  private conversationModel: OpenAI | null = null;
   private memoryStore: Map<string, MemoryItem[]> = new Map();
   private profileSignatureByUser: Map<string, string> = new Map();
 
   constructor() {
-    this.conversationModel = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
+    if (process.env.OPENAI_API_KEY) {
+      this.conversationModel = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+      });
+      console.log("[ULTRA THINK] ✅ OpenAI client initialized");
+    } else {
+      console.log("[ULTRA THINK] ⚠️ OPENAI_API_KEY not set - memory features will be limited");
+    }
   }
 
   // Store user profile information
@@ -138,6 +143,20 @@ export class SimplifiedUltraThink {
 
   // Process conversation with streaming and memory context
   async processConversationStream(userId: string, message: string, communityId?: number, onChunk?: (chunk: string) => void, systemPromptOverride?: string) {
+    if (!this.conversationModel) {
+      console.log("[ULTRA THINK] OpenAI not available, returning fallback response");
+      const fallbackResponse = "I'm sorry, but AI chat features are currently unavailable. Please ensure the OpenAI API key is configured.";
+      if (onChunk) {
+        onChunk(fallbackResponse);
+      }
+      return {
+        response: fallbackResponse,
+        memoryContext: [],
+        model: "fallback",
+        contextUsed: 0
+      };
+    }
+
     try {
       // Get relevant memories
       const relevantMemories = await this.searchMemories(userId, message, 5);
@@ -253,6 +272,16 @@ Current user query: "${message}"`;
 
   // Process conversation with memory context
   async processConversation(userId: string, message: string, communityId?: number, systemPromptOverride?: string) {
+    if (!this.conversationModel) {
+      console.log("[ULTRA THINK] OpenAI not available, returning fallback response");
+      return {
+        response: "I'm sorry, but AI chat features are currently unavailable. Please ensure the OpenAI API key is configured.",
+        memoryContext: [],
+        model: "fallback",
+        contextUsed: 0
+      };
+    }
+
     try {
       // Get relevant memories
       const relevantMemories = await this.searchMemories(userId, message, 5);
