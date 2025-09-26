@@ -1,6 +1,39 @@
-modules = ["nodejs-18", "web"]
+modules = ["nodejs-20", "web"]
+
 [agent]
 expertMode = true
 
 [nix]
 channel = "stable-25_05"
+
+# Development run command
+run = ["npm", "run", "start:replit"]
+
+# Optional build command for compilation
+[packager]
+language = "nodejs"
+
+[packager.features]
+packageSearch = true
+guessImports = true
+enabledForHosting = false
+
+# Deployment configuration
+[deployment]
+run = ["npm", "start"]
+build = ["npm", "run", "replit:build"]
+deploymentTarget = "cloudrun"
+
+# Environment configuration
+[env]
+NODE_ENV = "production"
+
+# Language server configuration for better TypeScript support
+[languages.typescript]
+pattern = "**/{*.ts,*.js,*.tsx,*.jsx}"
+[languages.typescript.languageServer]
+start = "typescript-language-server --stdio"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
