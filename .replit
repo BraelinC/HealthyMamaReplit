@@ -1,9 +1,9 @@
-modules = ["nodejs-18", "web"]
+modules = ["nodejs-20", "web"]
 [agent]
 expertMode = true
 
 [nix]
-channel = "stable-25_05"
+channel = "stable-23_05"
 
 [workflows]
 runButton = "Project"
@@ -32,10 +32,6 @@ waitForPort = 5000
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 42655
-externalPort = 3000
 
 [deployment]
 deploymentTarget = "autoscale"
