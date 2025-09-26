@@ -4,6 +4,7 @@ modules = ["nodejs-18"]
 run = ["npm", "run", "dev"]
 
 [deployment]
+build = ["npm", "install", "--legacy-peer-deps", "&&", "npm", "run", "build"]
 run = ["npm", "run", "start:replit"]
 
 [[ports]]
@@ -12,3 +13,6 @@ externalPort = 80
 
 [env]
 NODE_ENV = "development"
+
+[agent]
+expertMode = true
