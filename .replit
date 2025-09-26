@@ -1,57 +1,6 @@
 modules = ["nodejs-18", "web"]
-
 [agent]
 expertMode = true
 
 [nix]
 channel = "stable-25_05"
-
-[deployment]
-run = ["npm", "run", "start:replit"]
-deploymentTarget = "autoscale"
-ignorePorts = false
-
-[[ports]]
-localPort = 3000
-externalPort = 80
-
-[env]
-NODE_ENV = "production"
-
-[packager]
-language = "nodejs"
-
-[packager.features]
-enabledForHosting = false
-packageSearch = true
-guessImports = true
-
-[languages.javascript]
-pattern = "**/{*.js,*.jsx,*.ts,*.tsx}"
-
-[languages.javascript.languageServer]
-start = "typescript-language-server --stdio"
-
-[unitTest]
-language = "nodejs"
-
-[debugger]
-support = true
-
-[debugger.interactive]
-transport = "localhost:0"
-startCommand = ["dap-node"]
-
-[debugger.interactive.initializeMessage]
-command = "initialize"
-type = "request"
-
-[debugger.interactive.launchMessage]
-command = "launch"
-type = "request"
-program = "./server/index.ts"
-console = "externalTerminal"
-args = []
-cwd = "."
-environment = []
-sourceMaps = true
