@@ -1,0 +1,117 @@
+app.use((req, res, next) => {
+  const start = Date.now();
+  const path = req.path;
+  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+
+  const originalResJson = res.json;
+  res.json = function (bodyJson, ...args) {
+    capturedJsonResponse = bodyJson;
+    return originalResJson.apply(res, [bodyJson, ...args]);
+  };
+
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    if (path.startsWith("/api")) {
+      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      if (capturedJsonResponse) {
+        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      }
+
+      if (logLine.length > 80) {
+        logLine = logLine.slice(0, 79) + "…";
+      }
+
+      log(logLine);
+    }
+  });
+
+  next();
+});
+// Root endpoint for default health checks - must be FIRST before any middleware
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'nutrima-api', timestamp: new Date().toISOString() });
+});
+
+// Health check endpoint for deployment monitoring - fast response without external dependencies
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
+app.use((req, res, next) => {
+  const start = Date.now();
+  const path = req.path;
+  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+
+  const originalResJson = res.json;
+  res.json = function (bodyJson, ...args) {
+    capturedJsonResponse = bodyJson;
+    return originalResJson.apply(res, [bodyJson, ...args]);
+  };
+
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    if (path.startsWith("/api")) {
+      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      if (capturedJsonResponse) {
+        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      }
+
+      if (logLine.length > 80) {
+        logLine = logLine.slice(0, 79) + "…";
+      }
+
+      log(logLine);
+    }
+  });
+
+  next();
+});
+import { registerRoutes } from "./routes";
+import { setupVite, serveStatic, log } from "./vite";
+import { exec } from "child_process";
+import { passport } from "./googleAuth";
+// Lazy load heavy dependencies to speed up startup
+let registerRoutes: any;
+let setupVite: any, serveStatic: any, log: any;
+let passport: any;
+
+// Load dependencies only when needed
+const loadDependencies = async () => {
+  if (!registerRoutes) {
+    const routesModule = await import("./routes");
+    registerRoutes = routesModule.registerRoutes;
+  }
+  if (!setupVite) {
+    const viteModule = await import("./vite");
+    setupVite = viteModule.setupVite;
+    serveStatic = viteModule.serveStatic;
+    log = viteModule.log;
+  }
+  if (!passport) {
+    const authModule = await import("./googleAuth");
+    passport = authModule.passport;
+  }
+};
+// Root endpoint for default health checks - must be before other middleware
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'nutrima-api', timestamp: new Date().toISOString() });
+});
+// Root endpoint for default health checks - must be FIRST and respond immediately
+app.get('/', (req, res) => {
+  // Set timeout to ensure fast response for Cloud Run health checks
+  res.setTimeout(5000, () => {
+    res.status(408).json({ status: 'timeout', service: 'nutrima-api' });
+  });
+  
+  try {
+    res.status(200).json({ 
+      status: 'ok', 
+      service: 'nutrima-api', 
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage().heapUsed
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'error', service: 'nutrima-api' });
+  }
+});

@@ -18,11 +18,8 @@ if (process.env.NODE_ENV !== 'production') {
   }
 }
 
-
-
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { exec } from "child_process";
 import { passport } from "./googleAuth";
 
 const app = express();
@@ -62,7 +59,43 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Replit Auth enabled
+// Root endpoint FIRST - immediate health check response for deployment
+app.get('/', (req, res) => {
+  // Set timeout to ensure fast response for Cloud Run health checks
+  res.setTimeout(5000, () => {
+    res.status(408).json({ status: 'timeout', service: 'nutrima-api' });
+  });
+  
+  try {
+    res.status(200).json({ 
+      status: 'ok', 
+      service: 'nutrima-api', 
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB'
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'error', service: 'nutrima-api' });
+  }
+});
+
+// Health check endpoint - fast response without external dependencies
+app.get('/health', (req, res) => {
+  res.setTimeout(5000, () => {
+    res.status(408).json({ status: 'timeout' });
+  });
+  
+  try {
+    res.status(200).json({ 
+      status: 'healthy', 
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'error' });
+  }
+});
+
 // Increase payload size limit for image uploads (10MB)
 // Skip JSON parsing for Stripe webhook (it needs raw body)
 app.use((req, res, next) => {
@@ -94,16 +127,7 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Root endpoint for default health checks - must be before other middleware
-app.get('/', (req, res) => {
-  res.status(200).json({ status: 'ok' });
-});
-
-// Health check endpoint for deployment monitoring - fast response without external dependencies
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'healthy' });
-});
-
+// Request logging middleware (only once)
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -160,8 +184,12 @@ app.use((req, res, next) => {
 
   server.on('error', (error: any) => {
     if (error.code === 'EADDRINUSE') {
-      console.error(`Port ${port} is already in use.`);
-      process.exit(1);
+      console.error(`Port ${port} is already in use. Trying to find available port...`);
+      // Try to find next available port for development
+      const tryPort = port + 1;
+      server.listen(tryPort, "0.0.0.0", () => {
+        console.log(`Server running on port ${tryPort} (fallback)`);
+      });
     } else {
       console.error(`Server error: ${error.message}`);
       if (process.env.NODE_ENV !== 'production') {
@@ -172,5 +200,16 @@ app.use((req, res, next) => {
 
   server.listen(port, "0.0.0.0", () => {
     console.log(`Server running on port ${port}`);
+    // Send ready signal for health checks
+    if (process.send) process.send('ready');
+  });
+
+  // Graceful shutdown for autoscale deployment
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully');
+    server.close(() => {
+      console.log('Server closed');
+      process.exit(0);
+    });
   });
 })();

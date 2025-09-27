@@ -348,7 +348,7 @@ function Router() {
             <main className="flex-grow pb-16"> {/* Add bottom padding for the tab bar */}
               <Switch>
                 <Route path="/" component={Home} />
-                {/* <Route path="/search" component={Search} /> */}
+                <Route path="/search" component={Search} />
                 <Route path="/meal-planner" component={MealPlanner} />
                 <Route path="/chat" component={Chat} />
                 <Route path="/communities" component={Communities} />
