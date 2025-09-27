@@ -3,20 +3,61 @@ import { createServer, type Server } from "http";
 import fetch from "node-fetch";
 import jwt from "jsonwebtoken";
 import { storage } from "./storage";
-import { generateRecipeWithGrok } from "./grok";
-import { createInstacartRecipePage } from "./instacart";
-import { getRecipeFromYouTube, findBestRecipeVideo } from "./videoRecipeExtractor";
-import { extractFoodNameForNutrition, getServingSizeMultiplier } from "./nutritionParser";
-import { parseIngredientsWithGPT } from "./gptIngredientParser";
+// Heavy imports converted to lazy loading for faster startup
 import { authenticateToken } from "./auth"; // Import JWT auth middleware
 import { rateLimiter } from "./rateLimiter";
-import { handleLogMealDetection } from "./logmealEndpoint";
-import { communityService } from "./communityService";
-import { communityCommentsService } from "./communityCommentsService";
-import { creatorService } from "./creatorService";
-import { mealPlanSharingService } from "./mealPlanSharingService";
-import { groqValidator } from "./groqValidator";
-import { recipeNutritionCalculator } from "./recipeNutritionCalculator";
+
+// Lazy loaders for heavy dependencies
+const getLazyImports = {
+  async grok() {
+    const { generateRecipeWithGrok } = await import("./grok");
+    return { generateRecipeWithGrok };
+  },
+  async instacart() {
+    const { createInstacartRecipePage } = await import("./instacart");
+    return { createInstacartRecipePage };
+  },
+  async videoExtractor() {
+    const { getRecipeFromYouTube, findBestRecipeVideo } = await import("./videoRecipeExtractor");
+    return { getRecipeFromYouTube, findBestRecipeVideo };
+  },
+  async nutritionParser() {
+    const { extractFoodNameForNutrition, getServingSizeMultiplier } = await import("./nutritionParser");
+    return { extractFoodNameForNutrition, getServingSizeMultiplier };
+  },
+  async gptParser() {
+    const { parseIngredientsWithGPT } = await import("./gptIngredientParser");
+    return { parseIngredientsWithGPT };
+  },
+  async logMeal() {
+    const { handleLogMealDetection } = await import("./logmealEndpoint");
+    return { handleLogMealDetection };
+  },
+  async communityService() {
+    const { communityService } = await import("./communityService");
+    return { communityService };
+  },
+  async communityComments() {
+    const { communityCommentsService } = await import("./communityCommentsService");
+    return { communityCommentsService };
+  },
+  async creatorService() {
+    const { creatorService } = await import("./creatorService");
+    return { creatorService };
+  },
+  async mealPlanSharing() {
+    const { mealPlanSharingService } = await import("./mealPlanSharingService");
+    return { mealPlanSharingService };
+  },
+  async groqValidator() {
+    const { groqValidator } = await import("./groqValidator");
+    return { groqValidator };
+  },
+  async recipeNutrition() {
+    const { recipeNutritionCalculator } = await import("./recipeNutritionCalculator");
+    return { recipeNutritionCalculator };
+  }
+};
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
 import Stripe from "stripe";
@@ -935,6 +976,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           // Fast mode: Just find a YouTube video without full recipe extraction
+          const { findBestRecipeVideo } = await getLazyImports.videoExtractor();
           const videoInfo = await findBestRecipeVideo(description, {
             cuisine,
             diet: dietRestrictions,
@@ -982,6 +1024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         try {
           // Get a complete recipe from YouTube video with enhanced filter-aware search
+          const { getRecipeFromYouTube } = await getLazyImports.videoExtractor();
           const youtubeRecipe = await getRecipeFromYouTube(description, {
             cuisine,
             diet: dietRestrictions,
@@ -1139,6 +1182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Calculate nutrition using the new calculator
             const servings = recipe.servings || 4;
+            const { recipeNutritionCalculator } = await getLazyImports.recipeNutrition();
             const nutritionResult = await recipeNutritionCalculator.calculateRecipeNutrition(
               ingredientStrings,
               servings
@@ -1237,6 +1281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             : recipeToSave.instructions
         );
         
+        const { groqValidator } = await getLazyImports.groqValidator();
         const isInstructionsValid = await groqValidator.validateInstructions(recipeToSave.instructions);
         
         if (!isInstructionsValid) {
@@ -2261,7 +2306,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // LogMeal API endpoints for food detection and status
-  app.post("/api/detect-foods-logmeal", handleLogMealDetection);
+  app.post("/api/detect-foods-logmeal", async (req, res) => {
+    const { handleLogMealDetection } = await getLazyImports.logMeal();
+    return handleLogMealDetection(req, res);
+  });
   
   // Get LogMeal API usage status
   app.get("/api/logmeal-status", async (req, res) => {
