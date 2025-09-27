@@ -59,23 +59,37 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Root endpoint FIRST - immediate health check response for deployment
-app.get('/', (req, res) => {
-  // Set timeout to ensure fast response for Cloud Run health checks
-  res.setTimeout(5000, () => {
-    res.status(408).json({ status: 'timeout', service: 'nutrima-api' });
-  });
-  
-  try {
-    res.status(200).json({ 
-      status: 'ok', 
-      service: 'nutrima-api', 
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB'
+// Root endpoint - health check for monitoring tools, React app for browsers
+app.get('/', (req, res, next) => {
+  const userAgent = req.headers['user-agent'] || '';
+
+  // Check if this is a health check request (monitoring tools, curl, etc.)
+  const isHealthCheck = /curl|wget|HTTPie|health|monitor|check|pingdom|newrelic|datadog|uptime|bot|crawler/i.test(userAgent) ||
+                       !userAgent || // No user agent (likely automated tool)
+                       userAgent.startsWith('GoogleHC/') || // Google Cloud health checks
+                       userAgent.startsWith('Amazon CloudFront') || // AWS health checks
+                       userAgent.includes('HealthCheck'); // Generic health check tools
+
+  if (isHealthCheck) {
+    // Set timeout to ensure fast response for Cloud Run health checks
+    res.setTimeout(5000, () => {
+      res.status(408).json({ status: 'timeout', service: 'nutrima-api' });
     });
-  } catch (error) {
-    res.status(500).json({ status: 'error', service: 'nutrima-api' });
+
+    try {
+      res.status(200).json({
+        status: 'ok',
+        service: 'nutrima-api',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB'
+      });
+    } catch (error) {
+      res.status(500).json({ status: 'error', service: 'nutrima-api' });
+    }
+  } else {
+    // This is a browser request - let it fall through to static file serving
+    next();
   }
 });
 
@@ -182,26 +196,27 @@ app.use((req, res, next) => {
 
   const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
 
+  // Simple port binding - let Node.js handle port conflicts automatically
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`🚀 NutriMa server running on port ${port}`);
+    console.log(`📱 Frontend: http://localhost:${port}`);
+    console.log(`🔧 Mode: ${process.env.NODE_ENV || 'development'}`);
+    
+    // Send ready signal for health checks
+    if (process.send) process.send('ready');
+  });
+
   server.on('error', (error: any) => {
     if (error.code === 'EADDRINUSE') {
-      console.error(`Port ${port} is already in use. Trying to find available port...`);
-      // Try to find next available port for development
-      const tryPort = port + 1;
-      server.listen(tryPort, "0.0.0.0", () => {
-        console.log(`Server running on port ${tryPort} (fallback)`);
-      });
+      console.error(`❌ Port ${port} is already in use`);
+      console.error(`💡 Please stop other processes or change PORT environment variable`);
+      process.exit(1);
     } else {
-      console.error(`Server error: ${error.message}`);
+      console.error(`🔥 Server error: ${error.message}`);
       if (process.env.NODE_ENV !== 'production') {
         throw error;
       }
     }
-  });
-
-  server.listen(port, "0.0.0.0", () => {
-    console.log(`Server running on port ${port}`);
-    // Send ready signal for health checks
-    if (process.send) process.send('ready');
   });
 
   // Graceful shutdown for autoscale deployment
