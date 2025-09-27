@@ -9,8 +9,15 @@ const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 const YOUTUBE_API_KEY_BACKUP = process.env.YOUTUBE_API_KEY_BACKUP;
 const YOUTUBE_API_BASE_URL = 'https://www.googleapis.com/youtube/v3';
 
-// Initialize GROQ ingredient parser
-const groqIngredientParser = new GroqIngredientParser();
+// Lazy initialize GROQ ingredient parser
+let groqIngredientParser: GroqIngredientParser | null = null;
+
+export function getGroqIngredientParser(): GroqIngredientParser {
+  if (!groqIngredientParser) {
+    groqIngredientParser = new GroqIngredientParser();
+  }
+  return groqIngredientParser;
+}
 
 // Types
 interface YouTubeVideoInfo {
@@ -602,7 +609,7 @@ async function extractIngredientsFromChunk(text: string): Promise<string[]> {
 
     if (potentialIngredients.length > 0) {
       // Use GROQ to parse and clean the potential ingredients
-      const parsedIngredients = await groqIngredientParser.parseIngredients(potentialIngredients);
+      const parsedIngredients = await getGroqIngredientParser().parseIngredients(potentialIngredients);
       return parsedIngredients.map(parsed => parsed.originalText);
     }
 

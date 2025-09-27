@@ -1,5 +1,6 @@
-import { groqIngredientParser, type ParsedIngredient } from './groqIngredientParser';
-import { usdaNutritionService, type NutritionData } from './usdaNutritionService';
+import { type ParsedIngredient } from './groqIngredientParser';
+import { getUsdaNutritionService, type NutritionData } from './usdaNutritionService';
+import { getGroqIngredientParser } from './videoRecipeExtractor';
 
 export interface RecipeNutrition {
   servings: number;
@@ -29,7 +30,7 @@ export class RecipeNutritionCalculator {
 
     try {
       // Step 1: Parse ingredients using Groq GPT-OSS-20B
-      const parsedIngredients = await groqIngredientParser.parseIngredients(ingredients);
+      const parsedIngredients = await getGroqIngredientParser().parseIngredients(ingredients);
       
       if (!parsedIngredients || parsedIngredients.length === 0) {
         console.error('❌ [RECIPE NUTRITION] Failed to parse ingredients');
@@ -44,7 +45,7 @@ export class RecipeNutritionCalculator {
       for (const parsed of parsedIngredients) {
         console.log(`🔍 [RECIPE NUTRITION] Getting nutrition for: ${parsed.ingredient} (${parsed.amount})`);
         
-        const nutrition = await usdaNutritionService.getNutritionData(
+        const nutrition = await getUsdaNutritionService().getNutritionData(
           parsed.ingredient,
           parsed.quantity,
           parsed.unit
@@ -105,11 +106,11 @@ export class RecipeNutritionCalculator {
    * Parse ingredients and return formatted table
    */
   async parseIngredientsToTable(ingredients: string[]): Promise<string> {
-    const parsed = await groqIngredientParser.parseIngredients(ingredients);
+    const parsed = await getGroqIngredientParser().parseIngredients(ingredients);
     if (parsed.length === 0) {
       return 'No ingredients could be parsed';
     }
-    return groqIngredientParser.formatAsTable(parsed);
+    return getGroqIngredientParser().formatAsTable(parsed);
   }
 
   /**

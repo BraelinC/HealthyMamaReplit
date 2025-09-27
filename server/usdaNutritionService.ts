@@ -287,5 +287,12 @@ export class USDANutritionService {
   }
 }
 
-// Export singleton instance
-export const usdaNutritionService = new USDANutritionService();
+// Lazy-loaded singleton instance
+let _usdaNutritionService: USDANutritionService | null = null;
+
+export function getUsdaNutritionService(): USDANutritionService {
+  if (!_usdaNutritionService) {
+    _usdaNutritionService = new USDANutritionService();
+  }
+  return _usdaNutritionService;
+}

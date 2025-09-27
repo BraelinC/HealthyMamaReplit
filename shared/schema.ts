@@ -1039,6 +1039,46 @@ export const communityMemoryItems = pgTable("community_memory_items", {
   accessIdx: index("memory_access_idx").on(table.last_accessed),
 }));
 
+// ===== CHEF CHAT TABLES =====
+// Personal chef chat sessions (no community_id - purely personal)
+export const chefChatSessions = pgTable("chef_chat_sessions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  user_id: varchar("user_id").notNull().references(() => users.id),
+  title: varchar("title", { length: 255 }),
+  created_at: timestamp("created_at").defaultNow(),
+  last_message_at: timestamp("last_message_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("chef_chat_sessions_user_idx").on(table.user_id),
+}));
+
+// Messages in chef chat sessions
+export const chefChatMessages = pgTable("chef_chat_messages", {
+  id: serial("id").primaryKey(),
+  session_id: uuid("session_id").notNull().references(() => chefChatSessions.id, { onDelete: "cascade" }),
+  user_id: varchar("user_id"), // nullable for assistant/system
+  role: varchar("role", { length: 20 }).notNull(), // 'user' | 'assistant' | 'system'
+  content: text("content").notNull(),
+  token_count: integer("token_count"),
+  metadata: jsonb("metadata").default({}),
+  created_at: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  sessionIdx: index("chef_chat_messages_session_idx").on(table.session_id),
+}));
+
+// Memory for chef chat conversations
+export const chefChatMemory = pgTable("chef_chat_memory", {
+  id: serial("id").primaryKey(),
+  session_id: uuid("session_id").notNull().references(() => chefChatSessions.id, { onDelete: "cascade" }),
+  role: varchar("role", { length: 20 }).notNull(), // 'user' | 'assistant' | 'system'
+  content: text("content").notNull(),
+  token_count: integer("token_count"),
+  sequence_order: integer("sequence_order").notNull(), // Order within session
+  created_at: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  sessionIdx: index("chef_memory_session_idx").on(table.session_id),
+  orderIdx: index("chef_memory_order_idx").on(table.session_id, table.sequence_order),
+}));
+
 // Type exports for chat + memory
 export type ChatSession = typeof chatSessions.$inferSelect;
 export type InsertChatSession = typeof chatSessions.$inferInsert;
@@ -1054,6 +1094,12 @@ export type CookbookEntry = typeof cookbookEntries.$inferSelect;
 export type InsertCookbookEntry = typeof cookbookEntries.$inferInsert;
 export type CommunityMemoryItem = typeof communityMemoryItems.$inferSelect;
 export type InsertCommunityMemoryItem = typeof communityMemoryItems.$inferInsert;
+export type ChefChatSession = typeof chefChatSessions.$inferSelect;
+export type InsertChefChatSession = typeof chefChatSessions.$inferInsert;
+export type ChefChatMessage = typeof chefChatMessages.$inferSelect;
+export type InsertChefChatMessage = typeof chefChatMessages.$inferInsert;
+export type ChefChatMemory = typeof chefChatMemory.$inferSelect;
+export type InsertChefChatMemory = typeof chefChatMemory.$inferInsert;
 
 // Storage interfaces
 export interface IStorage {

@@ -45,6 +45,7 @@ import { db } from "./db";
 import { eq, and, isNull, desc } from "drizzle-orm";
 import { chatService } from "./chatService";
 import simplifiedMem0Routes from "./routes/simplifiedMem0Routes";
+import chefChatRoutes from "./routes/chefChatRoutes";
 
 // YouTube API utilities
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
@@ -145,6 +146,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== MEM0 ULTRATHINK ROUTES =====
   // Using simplified implementation without mem0.ai dependencies
   app.use("/api/mem0", authenticateToken, simplifiedMem0Routes);
+
+  // ===== CHEF CHAT ROUTES =====
+  // Personal AI chef assistant chat
+  app.use("/api/chef", authenticateToken, chefChatRoutes);
 
   // Toggle creator status endpoint (for testing)
   app.post("/api/user/toggle-creator", authenticateToken, async (req: any, res) => {

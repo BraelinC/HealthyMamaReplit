@@ -14,18 +14,19 @@ export class GroqRecipeValidator {
   private client: Groq | null = null;
   
   constructor() {
-    // Use GROQ_API_KEY from Replit Secrets
-    const groqApiKey = process.env.GROQ_API_KEY;
-    
-    if (groqApiKey) {
-      console.log('🚀 [GROQ VALIDATOR] Initializing with API key:', groqApiKey.substring(0, 10) + '...');
+    // Client will be initialized lazily when first needed
+  }
+
+  private getClient(): Groq | null {
+    if (!this.client && process.env.GROQ_API_KEY) {
+      const groqApiKey = process.env.GROQ_API_KEY;
+      console.log('🚀 [GROQ VALIDATOR] Initializing with API key (lazy):', groqApiKey.substring(0, 10) + '...');
       console.log('✅ [GROQ VALIDATOR] API key loaded successfully');
       this.client = new Groq({
         apiKey: groqApiKey
       });
-    } else {
-      console.error('❌ [GROQ VALIDATOR] GROQ_API_KEY not found, using fallback validation');
     }
+    return this.client;
   }
 
   async validateInstructions(instructions: string | string[] | undefined | null): Promise<boolean> {
@@ -55,8 +56,9 @@ export class GroqRecipeValidator {
       return false;
     }
     
-    // If no client (no API key), use fallback
-    if (!this.client) {
+    // Get client (lazy initialization)
+    const client = this.getClient();
+    if (!client) {
       console.log('⚠️ [GROQ VALIDATOR] No Groq client, using fallback validation');
       return this.fallbackValidation(instructionText);
     }
@@ -66,7 +68,7 @@ export class GroqRecipeValidator {
       const startTime = Date.now();
       
       // Try GPT-OSS-20B first but check reasoning field too
-      const completion = await this.client.chat.completions.create({
+      const completion = await client.chat.completions.create({
         model: "openai/gpt-oss-20b",  // Using GPT-OSS-20B for fast validation
         messages: [{
           role: "user",

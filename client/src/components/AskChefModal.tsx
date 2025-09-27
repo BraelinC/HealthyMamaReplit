@@ -30,15 +30,7 @@ export function AskChefModal({ isOpen, onClose }: AskChefModalProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Sample AI responses for testing
-  const aiResponses = [
-    "That's a great question! For healthy meal planning, I'd recommend focusing on balanced portions with lean proteins, whole grains, and plenty of vegetables.",
-    "Based on your dietary preferences, here are some nutritious recipe suggestions that might work well for your family.",
-    "I'd be happy to help you create a weekly meal plan that fits your nutritional goals and budget. What are your main dietary considerations?",
-    "For healthy snacking options, consider nuts, fruits, yogurt, or vegetable sticks with hummus. These provide sustained energy and important nutrients.",
-    "Meal prep is a fantastic way to stay on track with healthy eating! I can suggest some make-ahead recipes that work well for busy schedules.",
-    "It's important to stay hydrated and eat regular, balanced meals. What specific aspect of nutrition would you like to focus on?",
-  ];
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -67,22 +59,102 @@ export function AskChefModal({ isOpen, onClose }: AskChefModalProps) {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const messageContent = inputValue;
     setInputValue("");
     setIsLoading(true);
 
-    // Simulate AI response with delay
-    setTimeout(() => {
-      const randomResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)];
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: randomResponse,
+    try {
+      // Get JWT token from localStorage
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+
+      // Call chef chat API with streaming
+      const response = await fetch('/api/chef/chat/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          message: messageContent,
+          sessionId: sessionId
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response stream');
+      }
+
+      let aiResponseContent = '';
+      const aiMessageId = (Date.now() + 1).toString();
+
+      // Add initial AI message placeholder
+      const initialAiMessage: Message = {
+        id: aiMessageId,
+        content: '',
         sender: 'ai',
         timestamp: new Date()
       };
+      setMessages(prev => [...prev, initialAiMessage]);
 
-      setMessages(prev => [...prev, aiMessage]);
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = new TextDecoder().decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+
+                if (data.type === 'chunk' && data.content) {
+                  aiResponseContent += data.content;
+                  // Update the AI message with accumulated content
+                  setMessages(prev => prev.map(msg =>
+                    msg.id === aiMessageId
+                      ? { ...msg, content: aiResponseContent }
+                      : msg
+                  ));
+                } else if (data.type === 'complete' && data.result?.sessionId) {
+                  // Store session ID for future messages
+                  setSessionId(data.result.sessionId);
+                } else if (data.type === 'error') {
+                  throw new Error(data.error || 'API error');
+                }
+              } catch (parseError) {
+                // Ignore parsing errors for partial chunks
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+    } catch (error) {
+      console.error('Chef chat error:', error);
+      // Add error message
+      const errorMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        content: "Sorry, I'm having trouble responding right now. Please try again.",
+        sender: 'ai',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1000 + Math.random() * 2000); // Random delay between 1-3 seconds
+    }
   };
 
   const formatTime = (date: Date) => {
