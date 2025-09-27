@@ -84,33 +84,12 @@ export default function QuestionnaireSliderConnector() {
   // Save weights mutation
   const saveWeightsMutation = useMutation({
     mutationFn: async ({ weights, primaryGoal }: { weights: typeof currentWeights; primaryGoal?: string | null }) => {
-      console.log('dY'_ Saving weights to database:', weights);
+      console.log('🔄 Saving weights to database:', weights);
       const response = await fetch('/api/profile/weight-based', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ goalWeights: weights, primaryGoal })
       });
-      if (!response.ok) throw new Error('Failed to save weights');
-      return response.json();
-    },
-    onSuccess: (data) => {
-      console.log('�o. Weights saved successfully:', data);
-      setHasUnsavedChanges(false);
-      queryClient.invalidateQueries({ queryKey: ['/api/profile/weight-based'] });
-      toast({
-        title: "Success",
-        description: "Goal weights saved successfully!"
-      });
-    },
-    onError: (error) => {
-      console.error('�?O Failed to save weights:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save goal weights",
-        variant: "destructive"
-      });
-    }
-  });
       if (!response.ok) throw new Error('Failed to save weights');
       return response.json();
     },

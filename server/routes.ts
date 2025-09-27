@@ -50,15 +50,19 @@ import simplifiedMem0Routes from "./routes/simplifiedMem0Routes";
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 const YOUTUBE_API_BASE_URL = 'https://www.googleapis.com/youtube/v3';
 
-// Stripe configuration (conditional initialization)
+// Stripe configuration (lazy initialization)
 let stripe: Stripe | null = null;
-if (process.env.STRIPE_SECRET_KEY) {
-  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: "2025-07-30.basil",
-  });
-  console.log("[STRIPE] ✅ Stripe client initialized");
-} else {
-  console.log("[STRIPE] ⚠️ STRIPE_SECRET_KEY not set - payment features will be disabled");
+
+function getStripe(): Stripe | null {
+  if (!stripe && process.env.STRIPE_SECRET_KEY) {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2025-07-30.basil",
+    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log("[STRIPE] ✅ Stripe client initialized");
+    }
+  }
+  return stripe;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -513,7 +517,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Ensure a Stripe customer and link it to this user
       let customerId = user.stripe_customer_id as string | undefined;
       if (!customerId) {
-        const customer = await stripe.customers.create({
+        const customer = await getStripe()!.customers.create({
           email: user.email || undefined,
           name: user.full_name || undefined,
           metadata: { appUserId: String(user.id) },
@@ -522,7 +526,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateUser(String(user.id), { stripe_customer_id: customerId });
       }
 
-      const paymentIntent = await stripe.paymentIntents.create({
+      const paymentIntent = await getStripe()!.paymentIntents.create({
         amount: paymentAmount,
         currency: "usd",
         customer: customerId,
@@ -553,7 +557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create or retrieve customer
-      const customer = await stripe.customers.create({
+      const customer = await getStripe()!.customers.create({
         email: email,
         name: name || '',
         payment_method: paymentMethodId,
@@ -563,7 +567,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Create subscription for $20/month
-      const subscription = await stripe.subscriptions.create({
+      const subscription = await getStripe()!.subscriptions.create({
         customer: customer.id,
         items: [{
           price_data: {
@@ -615,7 +619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Ensure customer exists for this user
       let customerId = user.stripe_customer_id as string | undefined;
       if (!customerId) {
-        const customer = await stripe.customers.create({
+        const customer = await getStripe()!.customers.create({
           email: user.email || undefined,
           name: user.full_name || undefined,
           metadata: { appUserId: String(user.id) }
@@ -625,7 +629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create setup intent for collecting payment method
-      const setupIntent = await stripe.setupIntents.create({
+      const setupIntent = await getStripe()!.setupIntents.create({
         customer: customerId,
         payment_method_types: ['card'],
         usage: 'off_session',
@@ -638,7 +642,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If monthly, we'll create the subscription after payment method is confirmed
       // Store the plan details in metadata for later use
       if (paymentType === 'monthly') {
-        await stripe.customers.update(customerId, {
+        await getStripe()!.customers.update(customerId, {
           metadata: {
             paymentType: 'monthly',
             pendingSubscription: 'true',
@@ -671,7 +675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create customer
-      const customer = await stripe.customers.create({
+      const customer = await getStripe()!.customers.create({
         email: email,
         name: name || '',
         metadata: {
@@ -680,7 +684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Create setup intent for future payments (trial)
-      const setupIntent = await stripe.setupIntents.create({
+      const setupIntent = await getStripe()!.setupIntents.create({
         customer: customer.id,
         payment_method_types: ['card'],
         usage: 'off_session',
@@ -714,7 +718,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // In development, we can process without signature verification
         event = JSON.parse(req.body.toString());
       } else {
-        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+        event = getStripe()!.webhooks.constructEvent(req.body, sig, webhookSecret);
       }
     } catch (err: any) {
       console.error('Webhook signature verification failed:', err.message);
@@ -731,11 +735,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (setupIntent.metadata?.type === 'monthly') {
           try {
             // Get the customer
-            const customer = await stripe.customers.retrieve(setupIntent.customer as string) as any;
+            const customer = await getStripe()!.customers.retrieve(setupIntent.customer as string) as any;
             
             if (customer.metadata?.pendingSubscription === 'true') {
               // Create the subscription
-              const subscription = await stripe.subscriptions.create({
+              const subscription = await getStripe()!.subscriptions.create({
                 customer: customer.id,
                 items: [{
                   price_data: {
@@ -756,7 +760,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.log('Subscription created:', subscription.id);
               
               // Update customer metadata
-              await stripe.customers.update(customer.id, {
+              await getStripe()!.customers.update(customer.id, {
                 metadata: {
                   subscriptionId: subscription.id,
                   subscriptionStatus: 'active',
@@ -770,9 +774,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else if (setupIntent.metadata?.type === 'trial') {
           // For trial, create subscription with 30-day trial
           try {
-            const customer = await stripe.customers.retrieve(setupIntent.customer as string) as any;
+            const customer = await getStripe()!.customers.retrieve(setupIntent.customer as string) as any;
             
-            const subscription = await stripe.subscriptions.create({
+            const subscription = await getStripe()!.subscriptions.create({
               customer: customer.id,
               items: [{
                 price_data: {
@@ -794,7 +798,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log('Trial subscription created:', subscription.id);
             
             // Update customer metadata
-            await stripe.customers.update(customer.id, {
+            await getStripe()!.customers.update(customer.id, {
               metadata: {
                 subscriptionId: subscription.id,
                 subscriptionStatus: 'trialing',

@@ -5,12 +5,19 @@
 
 import OpenAI from "openai";
 
-// Initialize OpenAI client conditionally
+// Lazy-loaded OpenAI client
 let openai: OpenAI | null = null;
-if (process.env.OPENAI_API_KEY) {
-  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-} else {
-  console.log("[GPT PARSER] ⚠️ OPENAI_API_KEY not set - ingredient parsing will use fallback");
+
+function getOpenAIClient(): OpenAI | null {
+  if (!openai) {
+    if (!process.env.OPENAI_API_KEY) {
+      console.log("[GPT PARSER] ⚠️ OPENAI_API_KEY not set - ingredient parsing will use fallback");
+      return null;
+    }
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    console.log("[AI INIT] ✅ OpenAI client initialized for ingredient parsing");
+  }
+  return openai;
 }
 
 interface ParsedIngredientGPT {
@@ -25,8 +32,11 @@ interface ParsedIngredientGPT {
  * Use GPT to parse ingredient text and extract clean food name with quantity
  */
 export async function parseIngredientWithGPT(ingredientText: string): Promise<ParsedIngredientGPT> {
+  // Get OpenAI client on first use
+  const openaiClient = getOpenAIClient();
+
   // If OpenAI is not available, use fallback immediately
-  if (!openai) {
+  if (!openaiClient) {
     console.log("[GPT PARSER] No OpenAI client available, using fallback for:", ingredientText);
     return {
       originalText: ingredientText,
@@ -69,7 +79,7 @@ CRITICAL: Extract the EXACT quantity and unit from the original text. The nutrit
 
 Return only the JSON object.`;
 
-    const response = await openai.chat.completions.create({
+    const response = await openaiClient.chat.completions.create({
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
@@ -184,7 +194,7 @@ Example format:
   {"cleanFoodName": "salt", "quantity": 0, "unit": "to taste", "estimatedGrams": 0}
 ]`;
 
-    const response = await openai.chat.completions.create({
+    const response = await openaiClient.chat.completions.create({
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },

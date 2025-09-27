@@ -44,15 +44,20 @@ export class UltraThinkMemoryEngine {
           delete: async (_id: string) => undefined,
         } as any;
 
-    // GPT-4o-mini for conversation responses (proven recipe expertise)
-    if (process.env.OPENAI_API_KEY) {
+    // OpenAI client will be initialized lazily when first needed
+    if (!process.env.OPENAI_API_KEY) {
+      console.log("[ULTRA THINK ENGINE] ⚠️ OPENAI_API_KEY not set - memory features will be limited");
+    }
+  }
+
+  private getConversationModel(): OpenAI | null {
+    if (!this.conversationModel && process.env.OPENAI_API_KEY) {
       this.conversationModel = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY
       });
-      console.log("[ULTRA THINK ENGINE] ✅ OpenAI client initialized");
-    } else {
-      console.log("[ULTRA THINK ENGINE] ⚠️ OPENAI_API_KEY not set - memory features will be limited");
+      console.log("[ULTRA THINK ENGINE] ✅ OpenAI client initialized (lazy)");
     }
+    return this.conversationModel;
   }
 
   // Store comprehensive user profile data
@@ -209,7 +214,8 @@ Preference Categories:
 
   // Intelligent conversation processing with memory context
   async processConversation(userId: string, message: string, communityId?: number) {
-    if (!this.conversationModel) {
+    const model = this.getConversationModel();
+    if (!model) {
       console.log("[ULTRA THINK ENGINE] OpenAI not available, returning fallback response");
       return {
         response: "I'm sorry, but AI conversation features are currently unavailable. Please ensure the OpenAI API key is configured.",
@@ -230,7 +236,7 @@ Preference Categories:
       const systemPrompt = this.buildEnhancedSystemPrompt(relevantMemories, message);
 
       // 3. Generate response with GPT-4o-mini (proven for recipes)
-      const response = await this.conversationModel.chat.completions.create({
+      const response = await model.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
@@ -271,7 +277,8 @@ Preference Categories:
 
   // Find recipes with intelligent substitutions based on user context
   async findRecipeWithSubstitutions(userId: string, query: string, creatorId?: string) {
-    if (!this.conversationModel) {
+    const model = this.getConversationModel();
+    if (!model) {
       console.log("[ULTRA THINK ENGINE] OpenAI not available, returning basic recipe search");
       // Return fallback response with memory search only
       const recipeMemories = await this.memoryEngine.search(query, {
@@ -328,7 +335,7 @@ INSTRUCTIONS:
 
 Format your response to be helpful, personal, and actionable.`;
 
-      const suggestions = await this.conversationModel.chat.completions.create({
+      const suggestions = await model.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: modificationPrompt }],
         temperature: 0.7,

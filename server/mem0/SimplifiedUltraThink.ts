@@ -19,14 +19,20 @@ export class SimplifiedUltraThink {
   private profileSignatureByUser: Map<string, string> = new Map();
 
   constructor() {
-    if (process.env.OPENAI_API_KEY) {
+    // OpenAI client will be initialized lazily when first needed
+    if (!process.env.OPENAI_API_KEY) {
+      console.log("[ULTRA THINK] ⚠️ OPENAI_API_KEY not set - memory features will be limited");
+    }
+  }
+
+  private getConversationModel(): OpenAI | null {
+    if (!this.conversationModel && process.env.OPENAI_API_KEY) {
       this.conversationModel = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY
       });
-      console.log("[ULTRA THINK] ✅ OpenAI client initialized");
-    } else {
-      console.log("[ULTRA THINK] ⚠️ OPENAI_API_KEY not set - memory features will be limited");
+      console.log("[ULTRA THINK] ✅ OpenAI client initialized (lazy)");
     }
+    return this.conversationModel;
   }
 
   // Store user profile information
@@ -143,7 +149,8 @@ export class SimplifiedUltraThink {
 
   // Process conversation with streaming and memory context
   async processConversationStream(userId: string, message: string, communityId?: number, onChunk?: (chunk: string) => void, systemPromptOverride?: string) {
-    if (!this.conversationModel) {
+    const model = this.getConversationModel();
+    if (!model) {
       console.log("[ULTRA THINK] OpenAI not available, returning fallback response");
       const fallbackResponse = "I'm sorry, but AI chat features are currently unavailable. Please ensure the OpenAI API key is configured.";
       if (onChunk) {
@@ -218,7 +225,7 @@ ${recipeFormatInstructions}
 Current user query: "${message}"`;
 
       // Generate response with streaming GPT-4o-mini
-      const response = await this.conversationModel.chat.completions.create({
+      const response = await model.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
@@ -272,7 +279,8 @@ Current user query: "${message}"`;
 
   // Process conversation with memory context
   async processConversation(userId: string, message: string, communityId?: number, systemPromptOverride?: string) {
-    if (!this.conversationModel) {
+    const model = this.getConversationModel();
+    if (!model) {
       console.log("[ULTRA THINK] OpenAI not available, returning fallback response");
       return {
         response: "I'm sorry, but AI chat features are currently unavailable. Please ensure the OpenAI API key is configured.",
@@ -343,7 +351,7 @@ ${recipeFormatInstructions}
 Current user query: "${message}"`;
 
       // Generate response with GPT-4o-mini
-      const response = await this.conversationModel.chat.completions.create({
+      const response = await model.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },

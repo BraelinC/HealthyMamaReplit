@@ -9,20 +9,19 @@ import {
 } from "@shared/schema";
 import { memoryService } from "./memoryService";
 
-// Initialize OpenAI client conditionally
+// Lazy-loaded OpenAI client
 let openai: OpenAI | null = null;
-if (process.env.OPENAI_API_KEY) {
-  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  console.log("[AI INIT] ✅ OpenAI client initialized successfully");
-} else {
-  console.log("[AI INIT] ⚠️ OPENAI_API_KEY not set - AI features will be disabled");
-}
 
-// Basic startup diagnostics (no secrets)
-(() => {
-  const key = process.env.OPENAI_API_KEY || "";
-  console.log("[AI INIT] OPENAI_API_KEY present:", Boolean(key), "len:", key.length);
-})();
+function getOpenAIClient(): OpenAI {
+  if (!openai) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY not set - AI features are disabled");
+    }
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    console.log("[AI INIT] ✅ OpenAI client initialized on first use");
+  }
+  return openai;
+}
 
 // Rough token estimator (chars/4). Good enough for dynamic completion sizing.
 function estimateTokens(text: string | undefined | null): number {
@@ -85,7 +84,7 @@ async function generateWithResponsesAPI(params: {
     };
     if (useLowReasoning) body.reasoning = { effort: 'low' as const };
 
-    const resp: any = await openai.responses.create(body);
+    const resp: any = await getOpenAIClient().responses.create(body);
     lastRaw = resp;
     const chunk = extractResponseText(resp);
     if (chunk) aggregated += (aggregated ? "\n" : "") + chunk;

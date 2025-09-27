@@ -84,17 +84,27 @@ function buildPromptFromParams(params: RecipeGenerationParams): string {
 /**
  * Generate a recipe using the Grok API based on user preferences
  */
-export async function generateRecipeWithGrok(params: RecipeGenerationParams) {
-  const API_KEY = process.env.GROQ_API_KEY;
-  if (!API_KEY) {
-    throw new Error("GROQ_API_KEY is required. Set the GROQ_API_KEY environment variable.");
-  }
+// Lazy-loaded Groq client
+let groq: Groq | null = null;
 
-  const groq = new Groq({ apiKey: API_KEY });
+function getGroqClient(): Groq {
+  if (!groq) {
+    const API_KEY = process.env.GROQ_API_KEY;
+    if (!API_KEY) {
+      throw new Error("GROQ_API_KEY is required. Set the GROQ_API_KEY environment variable.");
+    }
+    groq = new Groq({ apiKey: API_KEY });
+    console.log("[AI INIT] ✅ Groq client initialized on first use");
+  }
+  return groq;
+}
+
+export async function generateRecipeWithGrok(params: RecipeGenerationParams) {
+  const groqClient = getGroqClient();
   const prompt = buildPromptFromParams(params);
 
   try {
-    const response = await groq.chat.completions.create({
+    const response = await groqClient.chat.completions.create({
       model: "openai/gpt-oss-20b",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
