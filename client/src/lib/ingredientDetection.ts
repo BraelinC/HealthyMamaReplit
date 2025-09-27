@@ -1,24 +1,5 @@
-// Heavy TensorFlow imports converted to lazy loading for better performance
+// Simplified ingredient detection without TensorFlow for better performance
 import { INGREDIENT_DATABASE } from './ingredientDatabase';
-import imagenetClasses from './imagenetClasses.json';
-
-// Lazy-loaded TensorFlow modules
-let tf: any = null;
-let isBackendLoaded = false;
-
-async function loadTensorFlow() {
-  if (!tf) {
-    console.log('🔄 [INGREDIENT DETECTION] Loading TensorFlow.js...');
-    const [tensorflowCore, tensorflowBackend] = await Promise.all([
-      import('@tensorflow/tfjs'),
-      import('@tensorflow/tfjs-backend-webgl')
-    ]);
-    tf = tensorflowCore;
-    isBackendLoaded = true;
-    console.log('✅ [INGREDIENT DETECTION] TensorFlow.js loaded successfully');
-  }
-  return tf;
-}
 
 interface DetectedIngredient {
   id: string;
@@ -32,11 +13,8 @@ interface DetectedIngredient {
   bbox?: number[]; // [x, y, width, height] for visualization
 }
 
-// MobileNet model configuration (pre-trained on ImageNet, can detect food items)
-const MODEL_URL = 'https://www.kaggle.com/models/google/mobilenet-v2/TfJs/035-128-classification/1';
-const BACKUP_MODEL_URL = 'https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v1_0.25_224/model.json';
-const INPUT_SIZE = 224;
-const CONFIDENCE_THRESHOLD = 0.15; // Lower threshold since we're mapping general objects to ingredients
+// Simple ingredient detection without heavy ML models
+const CONFIDENCE_THRESHOLD = 0.8; // High confidence for manual/text-based detection
 const MAX_DETECTIONS = 10;
 
 // 200+ Individual ingredient classes

@@ -22,6 +22,21 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: path.resolve(__dirname, "dist"),
       emptyOutDir: true,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Separate vendor libraries into their own chunks for better caching
+            'react-vendor': ['react', 'react-dom'],
+            'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs'],
+            'form-vendor': ['react-hook-form', '@hookform/resolvers'],
+            'utils-vendor': ['axios', 'date-fns', 'clsx']
+          }
+        }
+      },
+      target: 'esnext',
+      minify: 'terser',
+      sourcemap: false,
+      chunkSizeWarningLimit: 500 // Warn if chunks exceed 500kb
     },
     server: {
       host: "0.0.0.0",

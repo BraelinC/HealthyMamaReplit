@@ -14,6 +14,7 @@ interface Message {
   content: string;
   sender: 'user' | 'ai';
   timestamp: Date;
+  structuredData?: any;
 }
 
 export function AskChefModal({ isOpen, onClose }: AskChefModalProps) {
@@ -126,9 +127,19 @@ export function AskChefModal({ isOpen, onClose }: AskChefModalProps) {
                       ? { ...msg, content: aiResponseContent }
                       : msg
                   ));
-                } else if (data.type === 'complete' && data.result?.sessionId) {
+                } else if (data.type === 'complete') {
                   // Store session ID for future messages
-                  setSessionId(data.result.sessionId);
+                  if (data.result?.sessionId) {
+                    setSessionId(data.result.sessionId);
+                  }
+                  // Handle structured data (recipes, meal plans)
+                  if (data.result?.structuredData) {
+                    setMessages(prev => prev.map(msg =>
+                      msg.id === aiMessageId
+                        ? { ...msg, structuredData: data.result.structuredData }
+                        : msg
+                    ));
+                  }
                 } else if (data.type === 'error') {
                   throw new Error(data.error || 'API error');
                 }
@@ -228,6 +239,33 @@ export function AskChefModal({ isOpen, onClose }: AskChefModalProps) {
                       : 'bg-white text-gray-900 border border-gray-200'
                   }`}>
                     <p className="text-sm leading-relaxed">{message.content}</p>
+
+                    {/* Display structured recipe data if available */}
+                    {message.structuredData?.type === 'recipe_search' && message.structuredData.recipes && (
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg border">
+                        <h4 className="font-semibold text-sm text-gray-800 mb-2">🍳 Recipe Details</h4>
+                        <div className="text-sm text-gray-700 whitespace-pre-line max-h-64 overflow-y-auto">
+                          {message.structuredData.recipes}
+                        </div>
+                        {message.structuredData.citations && message.structuredData.citations.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-gray-200">
+                            <p className="text-xs text-gray-500 mb-1">Sources:</p>
+                            {message.structuredData.citations.slice(0, 3).map((citation: string, idx: number) => (
+                              <p key={idx} className="text-xs text-blue-600 truncate">{citation}</p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Display meal plan data if available */}
+                    {message.structuredData?.type === 'meal_plan' && (
+                      <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                        <h4 className="font-semibold text-sm text-green-800 mb-2">📅 Meal Plan</h4>
+                        <p className="text-sm text-green-700">{message.structuredData.message}</p>
+                      </div>
+                    )}
+
                     <p className={`text-xs mt-1 ${
                       message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
                     }`}>
