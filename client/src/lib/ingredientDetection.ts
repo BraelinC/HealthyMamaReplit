@@ -1,7 +1,24 @@
-import * as tf from '@tensorflow/tfjs';
-import '@tensorflow/tfjs-backend-webgl';
+// Heavy TensorFlow imports converted to lazy loading for better performance
 import { INGREDIENT_DATABASE } from './ingredientDatabase';
 import imagenetClasses from './imagenetClasses.json';
+
+// Lazy-loaded TensorFlow modules
+let tf: any = null;
+let isBackendLoaded = false;
+
+async function loadTensorFlow() {
+  if (!tf) {
+    console.log('🔄 [INGREDIENT DETECTION] Loading TensorFlow.js...');
+    const [tensorflowCore, tensorflowBackend] = await Promise.all([
+      import('@tensorflow/tfjs'),
+      import('@tensorflow/tfjs-backend-webgl')
+    ]);
+    tf = tensorflowCore;
+    isBackendLoaded = true;
+    console.log('✅ [INGREDIENT DETECTION] TensorFlow.js loaded successfully');
+  }
+  return tf;
+}
 
 interface DetectedIngredient {
   id: string;
