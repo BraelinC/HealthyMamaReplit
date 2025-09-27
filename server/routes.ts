@@ -3964,81 +3964,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Search query is required" });
       }
 
-      console.log(`🔍 [PERPLEXITY TEST] Starting search for: "${query}"`);
-      console.log(`🔑 [PERPLEXITY TEST] API Key exists: ${!!process.env.PERPLEXITY_API_KEY}`);
+      console.log(`🔍 [YOUTUBE SEARCH] Starting intelligent search for: "${query}"`);
 
-      // Test Perplexity API only first - Fix the request format
-      const requestBody = {
-        model: 'llama-3.1-sonar-small-128k-online',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a recipe search expert. Find detailed recipes with ingredients, instructions, and cooking times.'
-          },
-          {
-            role: 'user', 
-            content: `Find 3 simple recipes for: ${query}. Include ingredients, instructions, cooking time, and difficulty level for each recipe.`
-          }
-        ],
-        max_tokens: 1500,
-        temperature: 0.3,
-        top_p: 0.9,
-        return_citations: true,
-        return_images: false,
-        return_related_questions: false,
-        search_recency_filter: "month",
-        top_k: 0,
-        stream: false,
-        presence_penalty: 0,
-        frequency_penalty: 1
-      };
+      // Use YouTube extraction instead of Perplexity
+      const { getRecipeFromYouTube } = await getLazyImports.videoExtractor();
+      const youtubeRecipe = await getRecipeFromYouTube(query, {});
 
-      console.log(`📤 [PERPLEXITY TEST] Request body:`, JSON.stringify(requestBody, null, 2));
-
-      const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      console.log(`🌐 [PERPLEXITY] Response status: ${perplexityResponse.status}`);
-
-      if (!perplexityResponse.ok) {
-        const errorText = await perplexityResponse.text();
-        console.error(`🚨 [PERPLEXITY] Error response:`, errorText);
-        throw new Error(`Perplexity API error: ${perplexityResponse.status} - ${errorText}`);
+      if (!youtubeRecipe) {
+        return res.status(404).json({
+          success: false,
+          message: "No recipe found for the given query",
+          query
+        });
       }
 
-      const perplexityData = await perplexityResponse.json();
-      const recipeContent = perplexityData.choices[0]?.message?.content || '';
-      const citations = perplexityData.citations || [];
+      console.log(`✅ [YOUTUBE SEARCH] Successfully extracted recipe: ${youtubeRecipe.title}`);
+      console.log(`📊 [YOUTUBE SEARCH] Recipe has ${youtubeRecipe.ingredients?.length || 0} ingredients and ${youtubeRecipe.instructions?.length || 0} instructions`);
 
-      console.log(`🌐 [PERPLEXITY] Success! Found ${citations.length} citations`);
-      console.log(`📝 [PERPLEXITY] Content length: ${recipeContent.length} characters`);
-      console.log(`📝 [PERPLEXITY] Content preview:`, recipeContent.substring(0, 200) + '...');
-
-      // Return simple response for testing
+      // Return structured recipe data
       res.json({
         success: true,
         query,
-        perplexityContent: recipeContent,
-        citations,
-        contentLength: recipeContent.length,
+        recipe: youtubeRecipe,
         searchMetadata: {
-          perplexitySearched: true,
-          timestamp: new Date().toISOString()
+          youtubeSearched: true,
+          timestamp: new Date().toISOString(),
+          videoId: youtubeRecipe.videoId,
+          videoTitle: youtubeRecipe.videoTitle
         }
       });
 
     } catch (error: any) {
-      console.error("🚨 [PERPLEXITY TEST] Error:", error);
-      res.status(500).json({ 
-        message: "Failed to perform perplexity search",
+      console.error("🚨 [YOUTUBE SEARCH] Error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to perform intelligent search",
         error: error.message,
-        query: req.body.query 
+        query: req.body.query
       });
     }
   });

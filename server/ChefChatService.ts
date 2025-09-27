@@ -202,55 +202,46 @@ Always prioritize the user's dietary goals and restrictions from their profile w
     try {
       console.log('[CHEF SINGLE MEAL]', { query: intentData.query, userId });
 
-      // Call the intelligent search API (same logic as in routes.ts)
+      // Call YouTube extraction directly (same logic as intelligent-search endpoint)
       const searchQuery = intentData.query;
 
-      const requestBody = {
-        model: 'llama-3.1-sonar-small-128k-online',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a recipe search expert. Find detailed recipes with ingredients, instructions, and cooking times. Always include precise ingredient measurements and step-by-step cooking instructions.'
-          },
-          {
-            role: 'user',
-            content: `Find 3 detailed recipes for: ${searchQuery}. For each recipe include: exact ingredients with measurements, step-by-step instructions, cooking time, prep time, difficulty level (1-5), and serving size.`
-          }
-        ],
-        max_tokens: 1500,
-        temperature: 0.3,
-        top_p: 0.9,
-        return_citations: true,
-        search_domain_filter: ["allrecipes.com", "foodnetwork.com", "epicurious.com", "bonappetit.com", "seriouseats.com"]
+      const { getRecipeFromYouTube } = await import('./videoRecipeExtractor');
+      const youtubeRecipe = await getRecipeFromYouTube(searchQuery, {});
+
+      if (!youtubeRecipe) {
+        throw new Error('No recipe found');
+      }
+
+      console.log(`✅ [CHEF YOUTUBE] Successfully extracted recipe: ${youtubeRecipe.title}`);
+      console.log(`📊 [CHEF YOUTUBE] Recipe has ${youtubeRecipe.ingredients?.length || 0} ingredients and ${youtubeRecipe.instructions?.length || 0} instructions`);
+
+      // Format recipe data for the frontend
+      const formattedRecipe = {
+        title: youtubeRecipe.title,
+        ingredients: youtubeRecipe.ingredients || [],
+        instructions: youtubeRecipe.instructions || [],
+        cookingTime: youtubeRecipe.cookingTime || youtubeRecipe.readyInMinutes || 'N/A',
+        prepTime: youtubeRecipe.prepTime || 'N/A',
+        servings: youtubeRecipe.servings || 'N/A',
+        difficulty: youtubeRecipe.difficulty || 'N/A',
+        image: youtubeRecipe.image_url || youtubeRecipe.thumbnailUrl || '',
+        videoId: youtubeRecipe.videoId || '',
+        videoTitle: youtubeRecipe.videoTitle || '',
+        nutrition: youtubeRecipe.nutrition || null
       };
-
-      const apiKey = process.env.PERPLEXITY_API_KEY;
-      if (!apiKey) {
-        throw new Error('Perplexity API key not configured');
-      }
-
-      const response = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        throw new Error(`Perplexity API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const recipes = data.choices?.[0]?.message?.content || 'No recipes found';
 
       return {
         type: 'recipe_search',
         query: searchQuery,
-        recipes: recipes,
-        citations: data.citations || [],
-        rawResponse: data
+        recipes: JSON.stringify(formattedRecipe, null, 2), // Frontend expects string format
+        recipe: formattedRecipe, // Also provide structured data
+        searchMetadata: {
+          youtubeSearched: true,
+          timestamp: new Date().toISOString(),
+          videoId: youtubeRecipe.videoId,
+          videoTitle: youtubeRecipe.videoTitle
+        },
+        rawResponse: youtubeRecipe
       };
 
     } catch (error) {
