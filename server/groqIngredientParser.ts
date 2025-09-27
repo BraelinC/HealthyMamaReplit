@@ -170,5 +170,12 @@ Parse ALL ingredients and return ONLY the JSON array, no other text.`;
   }
 }
 
-// Export singleton instance
-export const groqIngredientParser = new GroqIngredientParser();
+// Lazy-loaded singleton instance  
+let _groqIngredientParser: GroqIngredientParser | null = null;
+
+export function getGroqIngredientParser(): GroqIngredientParser {
+  if (!_groqIngredientParser) {
+    _groqIngredientParser = new GroqIngredientParser();
+  }
+  return _groqIngredientParser;
+}

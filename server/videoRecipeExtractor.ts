@@ -2,22 +2,14 @@
 // import fetch from 'node-fetch';
 import { groqValidator } from './groqValidator';
 import { parseIngredientsWithGPT } from './gptIngredientParser';
-import { GroqIngredientParser } from './groqIngredientParser';
+import { getGroqIngredientParser } from './groqIngredientParser';
 import { deduplicateIngredients, cleanIngredientList } from "./ingredientDeduplicator";
 
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 const YOUTUBE_API_KEY_BACKUP = process.env.YOUTUBE_API_KEY_BACKUP;
 const YOUTUBE_API_BASE_URL = 'https://www.googleapis.com/youtube/v3';
 
-// Lazy initialize GROQ ingredient parser
-let groqIngredientParser: GroqIngredientParser | null = null;
-
-export function getGroqIngredientParser(): GroqIngredientParser {
-  if (!groqIngredientParser) {
-    groqIngredientParser = new GroqIngredientParser();
-  }
-  return groqIngredientParser;
-}
+// Note: getGroqIngredientParser is imported from './groqIngredientParser'
 
 // Types
 interface YouTubeVideoInfo {

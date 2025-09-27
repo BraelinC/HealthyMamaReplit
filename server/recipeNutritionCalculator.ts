@@ -1,6 +1,5 @@
-import { type ParsedIngredient } from './groqIngredientParser';
+import { type ParsedIngredient, getGroqIngredientParser } from './groqIngredientParser';
 import { getUsdaNutritionService, type NutritionData } from './usdaNutritionService';
-import { getGroqIngredientParser } from './videoRecipeExtractor';
 
 export interface RecipeNutrition {
   servings: number;
