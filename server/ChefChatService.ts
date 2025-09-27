@@ -1,4 +1,5 @@
 import { SimplifiedUltraThink } from './mem0/SimplifiedUltraThink';
+import { ProfileSyncService } from './mem0/ProfileSyncService';
 import { db } from "./db";
 import { and, asc, desc, eq } from "drizzle-orm";
 import {
@@ -15,9 +16,11 @@ import {
 
 export class ChefChatService {
   private ultraThink: SimplifiedUltraThink;
+  private profileSyncService: ProfileSyncService;
 
   constructor() {
     this.ultraThink = new SimplifiedUltraThink();
+    this.profileSyncService = new ProfileSyncService();
   }
 
   async ensureSession(userId: string, sessionId?: string) {
@@ -48,6 +51,16 @@ export class ChefChatService {
         messageLength: message.length
       });
 
+      // Auto-sync user profile to ensure chef has access to goals and preferences
+      try {
+        const existing = await this.profileSyncService.getUserProfile(userId);
+        if (existing?.profile) {
+          await this.syncUserProfile(userId, existing.profile);
+        }
+      } catch (profileError) {
+        console.warn('[CHEF CHAT] Profile sync failed, continuing without profile:', profileError);
+      }
+
       // Store user message in PostgreSQL
       await db.insert(chefChatMessages).values({
         session_id: sessionId,
@@ -57,7 +70,7 @@ export class ChefChatService {
       });
 
       // Default system prompt for chef (you can customize this later)
-      const systemPrompt = "You are a helpful AI chef assistant. Help users with cooking, recipes, meal planning, and nutrition advice.";
+      const systemPrompt = "You are a helpful AI chef assistant. Help users with cooking, recipes, meal planning, and nutrition advice. Use the user's profile information including their dietary goals, restrictions, and preferences to provide personalized recommendations.";
 
       // Process with streaming UltraThink (using community_id 0 as placeholder for personal chef)
       const result = await this.ultraThink.processConversationStream(
@@ -122,5 +135,24 @@ export class ChefChatService {
         eq(chefChatSessions.id, sessionId),
         eq(chefChatSessions.user_id, userId)
       ));
+  }
+
+  async syncUserProfile(userId: string, profilePayload: any) {
+    try {
+      // Sync profile to UltraThink memory
+      await this.ultraThink.storeUserProfile(userId, profilePayload);
+
+      // Also store in ProfileSyncService for persistence
+      await this.profileSyncService.syncProfile(userId, profilePayload);
+
+      return { success: true, message: 'Profile synced to chef memory' };
+    } catch (error) {
+      console.error('[CHEF PROFILE SYNC ERROR]', error);
+      throw error;
+    }
+  }
+
+  async getUserProfile(userId: string) {
+    return await this.profileSyncService.getUserProfile(userId);
   }
 }

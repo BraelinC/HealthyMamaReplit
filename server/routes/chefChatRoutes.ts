@@ -117,4 +117,48 @@ router.delete('/sessions/:sessionId', async (req, res) => {
   }
 });
 
+// ===== PROFILE SYNC ROUTES =====
+
+// Sync user profile to chef memory
+router.post('/profile/sync', async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const { profile } = req.body;
+
+    let profilePayload = profile;
+    if (!profilePayload) {
+      // Fallback: load profile from DB and map it
+      const existing = await chefChatService.getUserProfile(userId);
+      profilePayload = existing?.profile;
+    }
+
+    const result = await chefChatService.syncUserProfile(userId, profilePayload);
+    res.json(result);
+  } catch (error) {
+    console.error('[CHEF PROFILE SYNC ROUTE ERROR]', error);
+    res.status(500).json({
+      error: error.message || 'Internal server error',
+      engine: 'chef-ultrathink'
+    });
+  }
+});
+
+// Get mapped user profile from DB (for debugging/clients)
+router.get('/profile', async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const result = await chefChatService.getUserProfile(userId);
+    if (!result) {
+      return res.status(404).json({ message: 'No profile found' });
+    }
+    res.json(result);
+  } catch (error) {
+    console.error('[CHEF PROFILE GET ROUTE ERROR]', error);
+    res.status(500).json({
+      error: error.message || 'Internal server error',
+      engine: 'chef-ultrathink'
+    });
+  }
+});
+
 export default router;
