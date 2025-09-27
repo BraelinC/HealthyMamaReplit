@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { safeApiRequest, apiRequest } from "@/lib/queryClient";
 import { CreateRecipe } from "@/components/CreateRecipe";
+import { AskChefModal } from "@/components/AskChefModal";
 
 import { 
   ChefHat,
@@ -138,6 +139,7 @@ export default function Home() {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showSearchDialog, setShowSearchDialog] = useState(false);
   const [showCreateRecipe, setShowCreateRecipe] = useState(false);
+  const [showAskChef, setShowAskChef] = useState(false);
   const [showAddIngredientModal, setShowAddIngredientModal] = useState(false);
   const [newIngredient, setNewIngredient] = useState({ name: '', quantity: 1, unit: 'items', category: 'pantry' });
   const [searchQuery, setSearchQuery] = useState("");
@@ -2131,7 +2133,7 @@ export default function Home() {
               variant="ghost"
               className="w-full justify-start px-4 py-3 h-auto hover:bg-purple-50"
               onClick={() => {
-                setLocation('/chat');
+                setShowAskChef(true);
                 setShowAddMenu(false);
               }}
             >
@@ -2213,9 +2215,15 @@ export default function Home() {
       </div>
       
       {/* Create Recipe Dialog */}
-      <CreateRecipe 
-        isOpen={showCreateRecipe} 
-        onClose={() => setShowCreateRecipe(false)} 
+      <CreateRecipe
+        isOpen={showCreateRecipe}
+        onClose={() => setShowCreateRecipe(false)}
+      />
+
+      {/* Ask Chef Modal */}
+      <AskChefModal
+        isOpen={showAskChef}
+        onClose={() => setShowAskChef(false)}
       />
       
       {/* Community Share Modal */}
